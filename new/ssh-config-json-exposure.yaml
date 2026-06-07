@@ -1,0 +1,61 @@
+id: ssh-config-json-exposure
+
+info:
+  name: SSH Config JSON - Credentials Exposure
+  author: morgan
+  severity: high
+  description: |
+    Detects publicly accessible ssh-config.json files used by tools like json-to-ssh_config to generate ~/.ssh/config from JSON. The file enumerates SSH host aliases, hostnames, usernames, identity-file paths, and ports — useful to attackers for targeted access and lateral movement.
+  reference:
+    - https://github.com/ivuk/json-to-ssh_config
+    - https://pypi.org/project/ssh-config-json/
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+    cvss-score: 7.5
+    cwe-id: CWE-200
+  metadata:
+    max-request: 1
+    github-query: filename:ssh-config.json
+  tags: ssh,config,exposure,vuln
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/ssh-config.json"
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - '"Hosts"'
+          - '"HostName"'
+        condition: and
+
+      - type: word
+        part: body
+        words:
+          - '"User"'
+          - '"IdentityFile"'
+          - '"Port"'
+        condition: or
+
+      - type: word
+        part: header
+        words:
+          - "application/json"
+          - "text/plain"
+        condition: or
+
+      - type: status
+        status:
+          - 200
+
+    extractors:
+      - type: regex
+        part: body
+        group: 1
+        regex:
+          - '"HostName"\s*:\s*"([^"]+)"'
+          - '"User"\s*:\s*"([^"]+)"'
+          - '"IdentityFile"\s*:\s*"([^"]+)"'

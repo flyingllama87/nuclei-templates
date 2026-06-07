@@ -1,0 +1,80 @@
+id: build-manifest-disclosure
+
+info:
+  name: Java Build Manifest Disclosure (pom.xml / build.gradle)
+  author: morgan
+  severity: low
+  description: |
+    A Maven pom.xml or Gradle build.gradle file is publicly accessible at the web root. These files reveal dependencies, plugin versions, and sometimes credentials embedded in custom build logic — useful to attackers for fingerprinting vulnerable library versions.
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 5.3
+    cwe-id: CWE-200
+  metadata:
+    max-request: 4
+  tags: config,exposure,java,maven,gradle,vuln
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/pom.xml"
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "<project"
+          - "<modelVersion>"
+        condition: and
+
+      - type: word
+        part: body
+        words:
+          - "maven.apache.org/POM"
+          - "<groupId>"
+          - "<artifactId>"
+        condition: or
+
+      - type: status
+        status:
+          - 200
+
+    extractors:
+      - type: regex
+        part: body
+        group: 1
+        regex:
+          - "<groupId>([^<]+)</groupId>"
+          - "<artifactId>([^<]+)</artifactId>"
+          - "<version>([^<]+)</version>"
+
+  - method: GET
+    path:
+      - "{{BaseURL}}/build.gradle"
+      - "{{BaseURL}}/build.gradle.kts"
+      - "{{BaseURL}}/settings.gradle"
+
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "apply plugin:"
+          - "plugins {"
+          - "dependencies {"
+          - "implementation "
+          - "compile "
+          - "rootProject.name"
+        condition: or
+
+      - type: word
+        part: header
+        words:
+          - "text/html"
+        negative: true
+
+      - type: status
+        status:
+          - 200

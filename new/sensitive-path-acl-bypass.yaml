@@ -1,0 +1,115 @@
+id: sensitive-path-acl-bypass
+
+info:
+  name: Sensitive Path - Reverse-Proxy/ACL Bypass
+  author: morgan
+  severity: medium
+  description: |
+    Detects reverse-proxy or front-door ACL bypasses that allow access to sensitive files (e.g. /.env, /.git/config, /.aws/credentials) which are blocked on the canonical path but reachable via URL-encoding, whitespace injection, semicolon parameters, or path normalisation tricks. The flow first confirms the canonical path is denied (4xx), then probes a fixed set of bypass payloads.
+  reference:
+    - https://book.hacktricks.xyz/pentesting-web/proxy-waf-protections-bypass
+    - https://www.acunetix.com/blog/articles/path-traversal-vulnerability/
+    - https://i.blackhat.com/USA-22/Wednesday/US-22-Kettle-Browser-Powered-Desync-Attacks.pdf
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+    cvss-score: 7.5
+    cwe-id: CWE-22
+  metadata:
+    max-request: 169
+  tags: misconfig,bypass,exposure,fuzz,vuln
+
+variables:
+  marker: "BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|aws_access_key_id\\s*=|\\[core\\]\\s|^ref:\\s+refs/|(?mi)^[a-z_]*(KEY|TOKEN|PASS|SECRET|DATABASE_URL)[a-z_]*="
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}{{target}}"
+
+    payloads:
+      target:
+        - "/.env"
+        - "/.git/config"
+        - "/.git/HEAD"
+        - "/.aws/credentials"
+        - "/.ssh/id_rsa"
+        - "/.bash_history"
+        - "/actuator/env"
+        - "/server-status"
+        - "/server-info"
+
+    matchers:
+      - type: dsl
+        dsl:
+          - "status_code == 401 || status_code == 403 || status_code == 404"
+        internal: true
+
+    extractors:
+      - type: dsl
+        name: blocked_path
+        dsl:
+          - target
+
+  - method: GET
+    path:
+      - "{{BaseURL}}{{prefix}}{{target}}{{suffix}}"
+
+    attack: clusterbomb
+    payloads:
+      target:
+        - "/.env"
+        - "/.git/config"
+        - "/.git/HEAD"
+        - "/.aws/credentials"
+        - "/.ssh/id_rsa"
+        - "/.bash_history"
+        - "/actuator/env"
+        - "/server-status"
+        - "/server-info"
+      prefix:
+        - ""
+        - "/."
+        - "/./"
+        - "/.//"
+        - "/..;"
+        - "/.;"
+        - "/;"
+        - "/%2e/"
+        - "/%2e%2e/"
+        - "/%252e%252e/"
+        - "/%2f/"
+      suffix:
+        - ""
+        - "/"
+        - ";"
+        - "%00"
+        - "%09"
+        - "%0a"
+        - "%0d"
+        - "%0d%0a"
+        - "%0c"
+        - "%20"
+        - "?"
+        - "#"
+        - "/."
+
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: regex
+        part: body
+        regex:
+          - "{{marker}}"
+
+      - type: word
+        part: body
+        words:
+          - "<html"
+          - "<HTML"
+          - "<!DOCTYPE"
+        negative: true
+        condition: or

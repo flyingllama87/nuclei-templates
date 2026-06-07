@@ -1,0 +1,75 @@
+id: docker-compose-config
+
+info:
+  name: Docker Compose - Detect
+  author: meme-lord,blckraven,geeknik
+  severity: medium
+  description: |
+    A Docker Compose configuration file was detected. The file enumerates services, images, ports, volumes, and frequently embeds environment variables, image registry credentials, and database/service passwords.
+  reference:
+    - https://compose-spec.io/
+    - https://docs.docker.com/compose/compose-file/
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 5.3
+    cwe-id: CWE-200
+  metadata:
+    max-request: 22
+  tags: config,exposure,devops,docker,vuln
+
+http:
+  - method: GET
+    host-redirects: true
+    max-redirects: 3
+    path:
+      # Compose v2+ default filename and overrides
+      - "{{BaseURL}}/compose.yaml"
+      - "{{BaseURL}}/compose.yml"
+      - "{{BaseURL}}/compose.override.yaml"
+      - "{{BaseURL}}/compose.override.yml"
+      - "{{BaseURL}}/compose.prod.yaml"
+      - "{{BaseURL}}/compose.prod.yml"
+      - "{{BaseURL}}/compose.production.yaml"
+      - "{{BaseURL}}/compose.dev.yaml"
+      - "{{BaseURL}}/compose.dev.yml"
+      # Legacy docker-compose filenames (.yml + .yaml variants)
+      - "{{BaseURL}}/docker-compose.yml"
+      - "{{BaseURL}}/docker-compose.yaml"
+      - "{{BaseURL}}/docker-compose.override.yml"
+      - "{{BaseURL}}/docker-compose.override.yaml"
+      - "{{BaseURL}}/docker-compose.prod.yml"
+      - "{{BaseURL}}/docker-compose.prod.yaml"
+      - "{{BaseURL}}/docker-compose.production.yml"
+      - "{{BaseURL}}/docker-compose.production.yaml"
+      - "{{BaseURL}}/docker-compose.staging.yml"
+      - "{{BaseURL}}/docker-compose.staging.yaml"
+      - "{{BaseURL}}/docker-compose.dev.yml"
+      - "{{BaseURL}}/docker-compose.dev.yaml"
+      - "{{BaseURL}}/docker-compose-dev.yml"
+
+    stop-at-first-match: true
+
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?m)^services:\s*$'
+
+      - type: regex
+        part: body
+        regex:
+          - '(?m)^\s+(image|build|container_name|restart|depends_on|networks|volumes|ports|environment|env_file):'
+
+      - type: word
+        part: body
+        words:
+          - "<html"
+          - "<HTML"
+          - "<!DOCTYPE"
+        condition: or
+        negative: true
+
+      - type: status
+        status:
+          - 200

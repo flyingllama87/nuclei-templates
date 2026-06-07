@@ -1,0 +1,55 @@
+id: git-head-index-exposure
+
+info:
+  name: Git HEAD/Index Exposure
+  author: morgan
+  severity: medium
+  description: |
+    A publicly accessible .git directory exposes repository internals (HEAD ref, index). Combined with other git artifacts, this allows attackers to reconstruct the source code repository.
+  reference:
+    - https://owasp.org/www-community/vulnerabilities/Source_Code_Exposure
+    - https://en.internetwache.org/dont-publicly-expose-git-or-how-we-downloaded-your-websites-sourcecode-an-analysis-of-alexas-1m-28-07-2015/
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+    cvss-score: 7.5
+    cwe-id: CWE-200
+  metadata:
+    max-request: 2
+  tags: config,git,exposure,vuln
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.git/HEAD"
+
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '^ref:\s+refs/'
+
+      - type: dsl
+        dsl:
+          - "!contains(tolower(body), '<html')"
+          - "!contains(tolower(body), '<body')"
+        condition: and
+
+      - type: status
+        status:
+          - 200
+
+  - method: GET
+    path:
+      - "{{BaseURL}}/.git/index"
+
+    matchers-condition: and
+    matchers:
+      - type: binary
+        part: body
+        binary:
+          - "44495243" # "DIRC" magic bytes for git index
+
+      - type: status
+        status:
+          - 200

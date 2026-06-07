@@ -1,0 +1,76 @@
+id: javascript-config-disclosure
+
+info:
+  name: JavaScript Configuration File - Disclosure
+  author: morgan
+  severity: medium
+  description: |
+    Generic JavaScript configuration / app entry-point files (config.js, app.js, index.js, main.js) are exposed at common paths and contain hard-coded API keys, tokens, endpoints, or other credentials.
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+    cvss-score: 5.3
+    cwe-id: CWE-200
+  metadata:
+    max-request: 15
+  tags: javascript,config,exposure,vuln
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/config.js"
+      - "{{BaseURL}}/api/config.js"
+      - "{{BaseURL}}/app/config.js"
+      - "{{BaseURL}}/config/config.js"
+      - "{{BaseURL}}/public/config.js"
+      - "{{BaseURL}}/public/js/config.js"
+      - "{{BaseURL}}/src/config.js"
+      - "{{BaseURL}}/src/api/config.js"
+      - "{{BaseURL}}/static/config.js"
+      - "{{BaseURL}}/static/js/config.js"
+      - "{{BaseURL}}/web/config.js"
+      - "{{BaseURL}}/web/api/config.js"
+      - "{{BaseURL}}/assets/config.js"
+      - "{{BaseURL}}/dist/config.js"
+      - "{{BaseURL}}/js/config.js"
+
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: word
+        part: header
+        words:
+          - "application/javascript"
+          - "text/javascript"
+        condition: or
+
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|auth[_-]?token|access[_-]?token|password|passwd|pwd)\s*[:=]\s*["''][^"''<>\s]{8,}["'']'
+          - '(?i)(aws_access_key_id|aws_secret_access_key)\s*[:=]'
+          - '(?i)(apiUrl|apiBase|baseUrl|API_URL|API_BASE)\s*[:=]\s*["'']https?://'
+          - '(?i)firebaseConfig\s*='
+          - '(?i)window\.__ENV\s*='
+          - '(?i)window\.config\s*='
+        condition: or
+
+      - type: word
+        part: body
+        words:
+          - "Bootstrap"
+          - "jQuery"
+          - "CSS TRANSITION SUPPORT"
+          - "is_ad_blocked"
+        condition: or
+        negative: true
+
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(api[_-]?key|access[_-]?key|secret[_-]?key|client[_-]?secret|auth[_-]?token|access[_-]?token)\s*[:=]\s*["'']([^"''<>\s]{8,})["'']'
+          - '(?i)(apiUrl|apiBase|baseUrl|API_URL|API_BASE)\s*[:=]\s*["''](https?://[^"'']+)["'']'

@@ -1,0 +1,46 @@
+id: jci-metasys-properties-exposure
+
+info:
+  name: Johnson Controls Metasys - Properties File Exposure
+  author: morgan
+  severity: high
+  description: |
+    Johnson Controls Metasys building automation system exposes MetasysProperties.properties via the application directory. The file commonly leaks server, database, and integration configuration that supports lateral movement on building-management networks.
+  reference:
+    - https://www.johnsoncontrols.com/buildings/building-management/building-automation-systems-bas/metasys-buildings-system
+  classification:
+    cvss-metrics: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+    cvss-score: 7.5
+    cwe-id: CWE-200
+  metadata:
+    max-request: 1
+    vendor: johnsoncontrols
+    product: metasys
+  tags: config,exposure,metasys,scada,iot,vuln
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/metasys/com/jci/metasys/MetasysProperties.properties"
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "metasys"
+          - "jci"
+          - "="
+        condition: and
+
+      - type: word
+        part: body
+        words:
+          - "<html"
+          - "<HTML"
+        negative: true
+        condition: or
+
+      - type: status
+        status:
+          - 200
